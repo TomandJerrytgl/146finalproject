@@ -1,0 +1,37 @@
+%earth parking orbit
+orbit.ep.a=6878;         % Earth radius 6378 km + 500 km altitude (km)
+orbit.ep.e=0;            % Circular orbit assumption
+orbit.ep.inc=98;         % Inclination (deg)
+orbit.ep.raan=0;         % orbital simulation to determine
+orbit.ep.aop=NaN;        % Argument of Periapsis (undefined for e=0) 
+orbit.ep.frame='ECI';    % Earth-Centered Inertial frame
+orbit.ep.T=findT(orbit.ep);    %days
+orbit.ep.u=0.39860e6;     %km3/s2
+orbit.ep.p=orbit.ep.a(1-orbit.ep.e^2);
+orbit.ep.h=sqrt(orbit.ep.p*orbit.ep.u);
+orbit.ep.plane=htrans(orbit.ep);
+%earth orbit
+orbit.ste.a=1.49598e8;      %(km)
+orbit.ste.e=0.01671022;
+orbit.ste.inc=0.00005;       %inclination(deg)
+orbit.ste.raan=-11.26064;    %(deg)
+orbit.ste.aop=102.94719;        %argument of periapsis(deg)
+orbit.ste.frame='Heliocentric';
+orbit.ste.T=findT(orbit.ste);    %days
+orbit.ste.u=132712e6;     %km3/s2
+orbit.ste.p=orbit.ste.a(1-orbit.ste.e^2);
+orbit.ste.h=sqrt(orbit.ste.p*orbit.ste.u);
+orbit.ste.plane=htrans(orbit.ste);
+%mars orbit
+orbit.stm.a=2.279368e8;  %(km)
+orbit.stm.e=0.09341233;
+orbit.stm.inc=1.85061;        %inclination(deg)
+orbit.stm.raan=49.57854;     %(deg)
+orbit.stm.aop=286.5;      %argument of periapsis(deg)
+orbit.stm.frame='Heliocentric';
+orbit.stm.T=findT(orbit.stm);    %days
+orbit.stm.u=132712e6;     %km3/s2
+orbit.stm.p=orbit.stm.a(1-orbit.stm.e^2);
+orbit.stm.h=sqrt(orbit.stm.p*orbit.stm.u);
+orbit.stm.plane=htrans(orbit.stm);
+
