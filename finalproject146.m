@@ -5,7 +5,7 @@ orbit.ste.mass=planet.earth.mass;
 orbit.stm.periapsis=orbitpostransfer(orbit.stm,orbitpos(findr(orbit.stm,0),0));
 orbit.ste.periapsis=orbitpostransfer(orbit.ste,orbitpos(findr(orbit.ste,0),0));
 
-juliannow=juliandate(datetime(2025,3,10));
+juliannow=juliandate(datetime(2032,1,1));
 
 Marsanonow=caltruano(orbit.stm,juliannow);
 Marsposnow=findr(orbit.stm,Marsanonow);
@@ -30,6 +30,11 @@ r2d=orbitpos(absr,trueanomaly);
 r3d=orbitpostransfer(orbit,r2d);
 
 end
+%%
+function vpqw=findvpqw(orbit1,ano)
+vpqw=[-sqrt(orbit1.u/orbit1.p)*sin(ano);sqrt(orbit1.u/orbit1.p)*(orbit1.e+cos(ano));0];
+end
+
 
 %%
 %finding trueanomaly with orbit and time
@@ -126,13 +131,13 @@ end
 
 %%
 %find luanch window
-function launchwin=findnextlaunchwin(orbit1,orbit2,t,u,m)
+function [launchwin,orblist]=findnextlaunchwin(orbit1,orbit2,t,planet)
 i=0;
 timenow=t;
 mass1=orbit1.mass;
-mass2=m;
-orbit.trans.u=u;
-phasetime=1000;
+mass2=planet.mass;
+orbit.trans.u=planet.u;
+oblist=[];
 matrix1=[];
 while i<1000
     anor1=caltruano(orbit1,timenow);
@@ -142,24 +147,31 @@ while i<1000
     vecra=orbitpostransfer(orbit1,orbitpos(ra,anor1+pi));
     pjv=projectionvec(vecra,orbit2.plane);
     anor2=findangle(orbit2.periapsis,pjv);
-    
+    trans.evector=orbvec3d(orbit1,timenow);
+    trans.nodevect=cross(trans.evector,[0;0;1]);
+    trans.raan=findangle([1;0;0],trans.nodevect);
+    trans.aop=findangle(trans.nodevect,trans.evector);
     r2=findr(orbit2,anor2);
     orbit.trans.a=(r1+r2+rsoi)/2;
+    trans.e=(r2-r1-rsoi)/(2*orbit.trans.a);
     orbit.trans.T=findT(orbit.trans);
     orbit.trans.inc=findangle(vecra,pjv);
     transfertime=orbit.trans.T/2/3600/24;
     marsnow=caltruano(orbit2,timenow);
+
    
     planetarrivaltime=timebetween(orbit2,marsnow,anor2);
     
     phasetime=transfertime-planetarrivaltime;
+    
     timenow=timenow+1;
 
     
 
 
     i=i+1;
-    matrix1(i,:)=[i,transfertime,planetarrivaltime,phasetime,findangle(vecra,pjv)];
+    oblist(i,:)=[orbit.trans.a,trans.e,orbit.trans.inc,trans.raan,pi/2];
+    matrix1(i,:)=[i,transfertime,planetarrivaltime,phasetime,findangle(vecra,pjv),anor2];
 
     
 %    disp(orbit.trans)
@@ -170,6 +182,7 @@ while i<1000
 end
 
 launchwin=matrix1;
+orblist=oblist;
 
 
 
@@ -187,12 +200,32 @@ end
 %%
 %r=orbitpostransfer(orbit.stm,orbitpos(Marsposnow,Marsanonow))
 %%
-etmlwin=findnextlaunchwin(orbit.ste,orbit.stm,juliannow,planet.sun.u,planet.sun.mass);
-mtelwin=findnextlaunchwin(orbit.stm,orbit.ste,juliannow,planet.sun.u,planet.sun.mass);
-etmrows=abs(etmlwin(:,4))<1;
+[etmlwin,transorblist1]=findnextlaunchwin(orbit.ste,orbit.stm,juliannow,planet.sun);
+[mtelwin,transorblist2]=findnextlaunchwin(orbit.stm,orbit.ste,juliannow,planet.sun);
+etmrows=abs(etmlwin(:,4))<5;
 disp(etmlwin(etmrows,:))
+disp(transorblist1(etmrows,2:5))
 mterows=abs(mtelwin(:,4))<1;
 disp(mtelwin(mterows,:))
+disp(transorblist2(mterows,2:5))
+orblist1=transorblist1(etmrows,:);
+winlist1=etmlwin(etmrows,:);
+
+etmtransorb=orb(orblist1(1,1),orblist1(1,2),planet.sun.u,orblist1(1,3),orblist1(1,4),orblist1(1,5),(juliannow+winlist1(1,1)));
+trans.v0=norm(findvpqw(etmtransorb,0));
+earth.v=norm(findvpqw(orbit.ste,etmtransorb.raan+pi/2));
+vinfi(1,1)=abs(earth.v-trans.v0);
+trans.vt=norm(findvpqw(etmtransorb,pi));
+mars.v=norm(findvpqw(orbit.stm,etmlwin(1,6)));
+trans.vinc=norm(findvpqw(etmtransorb,pi/2));
+vinfi(2,1)=trans.vt-mars.v;
+energy=vinfi.^2./2;
+pu=[planet.earth.u;planet.mars.u];
+parkingr=[orbit.ep.a;planet.stm.radius+500];
+parkingv=sqrt(pu./parkingr)
+vp=sqrt((energy+pu./parkingr).*2)
+dv=vp-parkingv
+dv(3)=2*trans.vinc*sin(etmtransorb.inc/2)
 %%
 %phase=timebetween(orbit.ste,0,pi)
 
@@ -201,6 +234,7 @@ t=1;
 for i=0:800
     rstm(:,t)=orbvec3d(orbit.stm,t);
     rste(:,t)=orbvec3d(orbit.ste,t);
+
     t=t+1;
 end
 
@@ -216,12 +250,12 @@ title('3d trace')
 grid on
 axis equal
 %%
-grid on;
-for i=0:366
-    h=plot3([],[],[],LineWidth=2);
-    set(h,'Xdata',r(1,:),'Ydata',r(2,:),'Zdata',r(3,:));
-    pause(0.05);
-end
+%grid on;
+%for i=0:366
+%    h=plot3([],[],[],LineWidth=2);
+%    set(h,'Xdata',r(1,:),'Ydata',r(2,:),'Zdata',r(3,:));
+%    pause(0.05);
+%end
 
 
 %%
@@ -265,3 +299,12 @@ repjv=projectionvec(reperi,orbit.ste.plane)
 %r1=[4;5;1]
 %r1pjv=projectionvec(r1,orbit.ste.plane)
 angle=rad2deg(findangle(reperi,repjv))
+
+
+%%
+%load('finaldata.mat');
+%juliannow=juliandate(datetime(2025,3,10));
+
+
+
+
