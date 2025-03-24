@@ -10,8 +10,146 @@ juliannow=juliandate(datetime(2032,1,1));
 Marsanonow=caltruano(orbit.stm,juliannow);
 Marsposnow=findr(orbit.stm,Marsanonow);
 tratime=timebetween(orbit.stm,2.5,3.6);
+
 %%
-angle=findangle([1,1,0],[0,0,1])
+format short
+[etmlwin,transorblist1]=findnextlaunchwin(orbit.ste,orbit.stm,juliannow,planet.sun);
+[mtelwin,transorblist2]=findnextlaunchwin(orbit.stm,orbit.ste,juliannow,planet.sun);
+etmrows=abs(etmlwin(:,4))<1;
+%disp(etmlwin(etmrows,:))
+%disp(transorblist1(etmrows,2:5))
+mterows=abs(mtelwin(:,4))<1;
+%disp(mtelwin(mterows,:))
+%disp(transorblist2(mterows,2:5))
+orblist1=transorblist1(etmrows,:);
+winlist1=etmlwin(etmrows,:);
+luanchday=juliannow+winlist1(1,1);
+etmtransorb=orb(orblist1(1,1),orblist1(1,2),planet.sun.u,orblist1(1,3),orblist1(1,4),orblist1(1,5),luanchday);
+%mtetransorb=orb(orblist2(5,1),orblist1(5,2),planet.sun.u,orblist1(5,3),orblist1(5,4),orblist1(5,5),(juliannow+winlist1(5,1)));
+trans.v0=norm(findvpqw(etmtransorb,0));
+earth.v=norm(findvpqw(orbit.ste,caltruano(orbit.ste,juliannow+etmlwin(1,1))));
+vinfi(1,1)=abs(earth.v-trans.v0);
+trans.vt=norm(findvpqw(etmtransorb,pi));
+mars.v=norm(findvpqw(orbit.stm,etmlwin(1,6)));
+trans.vinc=norm(findvpqw(etmtransorb,pi/2));
+vinfi(2,1)=trans.vt-mars.v;
+energy=vinfi.^2./2;
+pu=[planet.earth.u;planet.mars.u];
+parkingr=[orbit.ep.a;planet.mars.radius+500];
+parkingv=sqrt(pu./parkingr);
+vp=sqrt((energy+pu./parkingr).*2);
+dv=vp-parkingv;
+dv(3)=2*trans.vinc*sin(etmtransorb.inc/2);
+mfrate=exp(-dv.*1000./starship.fuel.isp./9.8);
+dluanday=datetime(luanchday, 'ConvertFrom', 'juliandate');
+
+fprintf("Relevant Information For Final Project:\n\n");
+
+fprintf("Launch Location: Boca Chica, Texas\nPossible Launch Windows(days after 01/01/2032): %4.2f \nSelected Launch Window: %s\n\n",winlist1(1),dluanday);
+fprintf("Starship (Spaceship) Specs: \nMass: %4.2f (kg)\nPayload Size: %d (kg)\nMass of Fuel: %4.2f (kg)\nISP: %d (s)\n",starship.mass+starship.fuel.mass,starship.mass,starship.fuel.mass,starship.fuel.isp);
+fprintf("Earth Parking Orbits Parameters: \nRadius: %4.2f (km)\n\n",orbit.ep.a);
+fprintf("Earth Hyperbolic Orbit: \nPerigee Radius: %4.2f (km)\nV_Infinity: %4.2f\n\n",orbit.ep.a,vinfi(1,1));
+fprintf("Hohmann Transfer Orbit: \nSemimajor Axis: %4.2f (km)\nEccentricity: %4.2f\n\n",etmtransorb.a,etmtransorb.e);
+fprintf("Hohmann Transfer Inclination: \nInclination Change: %4.4f (rads)\nDelta V_Produced: %4.2f %4.2f %4.2f (km/s)\n\n", etmtransorb.inc,dv(1),dv(2),dv(3));
+fprintf("Mars Capture Hyperbolic Orbit: \nPeriapsis Radius: %4.2f (km)\n\n",planet.mars.radius+500);
+fprintf("Total Delta V: %4.2f (km/s)\nFinal mass/Initial Mass:  %4.4f\n\n",sum(dv),prod(mfrate));
+fprintf("For relative information you may want to know, enter the key words in command window:\nHohmann transfer orbit information: etmtransorb\nLaunch phase for the next 1000 days (01/01/2032):etmlwin(Earth to Mars),mtelwin(Mars to Earth)\nstarship information:starship\nPlanet orbit information:orbit.stm, orbit.ste\n")
+%%
+%phase=timebetween(orbit.ste,0,pi)
+
+%%
+calt=luanchday-100;
+c=1;
+
+for i=0:1:800
+    rstm(:,c)=orbvec3d(orbit.stm,calt);
+    rste(:,c)=orbvec3d(orbit.ste,calt);
+    rtrans(:,c)=orbvec3d(etmtransorb,calt);
+    c=c+1;
+
+
+    calt=calt+1;
+end
+
+% 
+% 
+% plot3(r(1,:),r(2,:),r(3,:),'b','LineWidth',2)
+% hold on
+% plot3(rste(1,:),rste(2,:),rste(3,:))
+% xlabel('X');
+% ylabel('Y');
+% zlabel('Z');
+% title('3d trace')
+% grid on
+% axis equal
+%%
+%grid on;
+%for i=0:366
+%    h=plot3([],[],[],LineWidth=2);
+%    set(h,'Xdata',r(1,:),'Ydata',r(2,:),'Zdata',r(3,:));
+%    pause(0.05);
+%end
+
+
+%%迹数
+% 生成 3D 轨据
+t = linspace(0, 10, 200);
+x = rstm(1,:);
+y = rstm(2,:);
+z = rstm(3,:);
+x2=rste(1,:);
+y2=rste(2,:);
+z2=rste(3,:);
+x3=rtrans(1,:);
+y3=rtrans(2,:);
+z3=rtrans(3,:);
+
+% 创建图形窗口
+figure;
+h = plot3(NaN, NaN, NaN, '-r', 'LineWidth', 2); % 先创建空轨迹
+hold on
+h2 = plot3(NaN, NaN, NaN, '-b', 'LineWidth', 2);
+h3 = plot3(NaN, NaN, NaN, '-g', 'LineWidth', 2);
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+title('Trajectory 3D ');
+grid on;
+
+% 设置 X/Y/Z 轴比例
+axis equal;
+pbaspect([1 1 1]);
+view(3);
+plot3(rste(1,:),rste(2,:),rste(3,:))
+plot3(rstm(1,:),rstm(2,:),rstm(3,:))
+plot3(rtrans(1,:),rtrans(2,:),rtrans(3,:))
+
+
+% % 动画循环
+% for i = 1:length(rstm)
+%     % 更新轨迹数据
+%     set(h, 'XData', x(1:i), 'YData', y(1:i), 'ZData', z(1:i));
+% 
+%     set(h2, 'XData', x2(1:i), 'YData', y2(1:i), 'ZData', z2(1:i));
+%     set(h3, 'XData', x3(1:i), 'YData', y3(1:i), 'ZData', z3(1:i));
+%     pause(0.02); % 控制更新速度
+% end
+%%
+%reperi=orbvec3dano(orbit.ste,2)
+%ermperi=orbvec3dano(orbit.stm,0)
+%repjv=projectionvec(reperi,orbit.ste.plane)
+%r1=[4;5;1]
+%r1pjv=projectionvec(r1,orbit.ste.plane)
+%angle=rad2deg(findangle(reperi,repjv))
+
+
+%%
+%load('finaldata.mat');
+%juliannow=juliandate(datetime(2025,3,10));
+
+
+%%
+% angle=findangle([1,1,0],[0,0,1])
 
 %%
 %get 3d vector r of an orbit
@@ -199,112 +337,4 @@ end
 
 %%
 %r=orbitpostransfer(orbit.stm,orbitpos(Marsposnow,Marsanonow))
-%%
-[etmlwin,transorblist1]=findnextlaunchwin(orbit.ste,orbit.stm,juliannow,planet.sun);
-[mtelwin,transorblist2]=findnextlaunchwin(orbit.stm,orbit.ste,juliannow,planet.sun);
-etmrows=abs(etmlwin(:,4))<5;
-disp(etmlwin(etmrows,:))
-disp(transorblist1(etmrows,2:5))
-mterows=abs(mtelwin(:,4))<1;
-disp(mtelwin(mterows,:))
-disp(transorblist2(mterows,2:5))
-orblist1=transorblist1(etmrows,:);
-winlist1=etmlwin(etmrows,:);
-
-etmtransorb=orb(orblist1(1,1),orblist1(1,2),planet.sun.u,orblist1(1,3),orblist1(1,4),orblist1(1,5),(juliannow+winlist1(1,1)));
-trans.v0=norm(findvpqw(etmtransorb,0));
-earth.v=norm(findvpqw(orbit.ste,etmtransorb.raan+pi/2));
-vinfi(1,1)=abs(earth.v-trans.v0);
-trans.vt=norm(findvpqw(etmtransorb,pi));
-mars.v=norm(findvpqw(orbit.stm,etmlwin(1,6)));
-trans.vinc=norm(findvpqw(etmtransorb,pi/2));
-vinfi(2,1)=trans.vt-mars.v;
-energy=vinfi.^2./2;
-pu=[planet.earth.u;planet.mars.u];
-parkingr=[orbit.ep.a;planet.stm.radius+500];
-parkingv=sqrt(pu./parkingr)
-vp=sqrt((energy+pu./parkingr).*2)
-dv=vp-parkingv
-dv(3)=2*trans.vinc*sin(etmtransorb.inc/2)
-%%
-%phase=timebetween(orbit.ste,0,pi)
-
-%%
-t=1;
-for i=0:800
-    rstm(:,t)=orbvec3d(orbit.stm,t);
-    rste(:,t)=orbvec3d(orbit.ste,t);
-
-    t=t+1;
-end
-
-%%
-
-%plot3(r(1,:),r(2,:),r(3,:),'b','LineWidth',2)
-hold on
-plot3(rste(1,:),rste(2,:),rste(3,:))
-xlabel('X');
-ylabel('Y');
-zlabel('Z');
-title('3d trace')
-grid on
-axis equal
-%%
-%grid on;
-%for i=0:366
-%    h=plot3([],[],[],LineWidth=2);
-%    set(h,'Xdata',r(1,:),'Ydata',r(2,:),'Zdata',r(3,:));
-%    pause(0.05);
-%end
-
-
-%%
-% 生成 3D 轨迹数据
-t = linspace(0, 10, 200);
-x = rstm(1,:);
-y = rstm(2,:);
-z = rstm(3,:);
-x2=rste(1,:);
-y2=rste(2,:);
-z2=rste(3,:);
-
-% 创建图形窗口
-figure;
-h = plot3(NaN, NaN, NaN, '-o', 'LineWidth', 2); % 先创建空轨迹
-hold on
-h2 = plot3(NaN, NaN, NaN, '-r', 'LineWidth', 2);
-xlabel('X');
-ylabel('Y');
-zlabel('Z');
-title('动态 3D 轨迹');
-grid on;
-
-% 设置 X/Y/Z 轴比例
-axis equal;
-pbaspect([1 1 1]);
-view(3);
-
-% 动画循环
-for i = 1:length(rstm)
-    % 更新轨迹数据
-    set(h, 'XData', x(1:i), 'YData', y(1:i), 'ZData', z(1:i));
-    
-    set(h2, 'XData', x2(1:i), 'YData', y2(1:i), 'ZData', z2(1:i));
-    pause(0.02); % 控制更新速度
-end
-%%
-reperi=orbvec3dano(orbit.ste,2)
-ermperi=orbvec3dano(orbit.stm,0)
-repjv=projectionvec(reperi,orbit.ste.plane)
-%r1=[4;5;1]
-%r1pjv=projectionvec(r1,orbit.ste.plane)
-angle=rad2deg(findangle(reperi,repjv))
-
-
-%%
-%load('finaldata.mat');
-%juliannow=juliandate(datetime(2025,3,10));
-
-
-
 
